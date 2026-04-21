@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sakamoto Days - Stellar Run</title>
+
+<style>
+:root { --main-blue: #00ccff; }
+body { margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; background: radial-gradient(circle at top, #1a1a1a, #000); color: white; min-height: 100vh; overflow-x: hidden; }
+
+/* لودر */
+#loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; display: flex; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.6s ease; }
+.loading-text { font-size: clamp(40px, 10vw, 60px); font-weight: 900; color: var(--main-blue); letter-spacing: 5px; animation: spin 1.2s linear infinite; }
+@keyframes spin { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(360deg); } }
+
+/* الهيدر */
+.header { display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: rgba(0, 0, 0, 0.9); border-bottom: 2px solid var(--main-blue); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 1000; }
+.logo-link { text-decoration: none; }
+.left-logo { font-size: 22px; font-weight: 900; }
+.stellar { color: #fff; }
+.run { color: var(--main-blue); }
+
+.back-container { display: flex; flex-direction: column; align-items: center; text-decoration: none; transition: 0.3s; }
+.back-btn-icon { color: var(--main-blue); display: flex; }
+.back-text { color: var(--main-blue); font-size: 10px; font-weight: bold; }
+
+/* المحتوى */
+.anime-container { display: flex; flex-direction: column; align-items: center; padding: 30px 20px; max-width: 900px; margin: 0 auto; }
+.cover-wrapper { width: 260px; border: 4px solid var(--main-blue); border-radius: 15px; overflow: hidden; box-shadow: 0 0 25px rgba(0, 204, 255, 0.3); margin-bottom: 15px; }
+.cover-wrapper img { width: 100%; display: block; aspect-ratio: 2/3; object-fit: cover; }
+
+.title-wrapper { display: flex; align-items: center; gap: 15px; margin-bottom: 5px; }
+.anime-title-en { font-size: 28px; font-weight: 900; color: #fff; text-transform: uppercase; margin: 0; }
+.bookmark-icon-page { cursor: pointer; fill: #444; transition: 0.3s ease; }
+.bookmark-icon-page.active { fill: var(--main-blue); filter: drop-shadow(0 0 10px var(--main-blue)); }
+
+.rating-display { display: flex; align-items: center; gap: 10px; margin-bottom: 25px; }
+.stars-blue { color: var(--main-blue); font-size: 18px; text-shadow: 0 0 8px var(--main-blue); }
+.rating-score { color: #888; font-weight: bold; font-size: 16px; }
+
+.info-section, .description-section { width: 100%; background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 15px; border-right: 4px solid var(--main-blue); margin-bottom: 20px; box-sizing: border-box; }
+.info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #333; }
+.info-row:last-child { border: none; }
+.label { color: #aaa; font-weight: bold; }
+.value { color: #fff; text-align: left; }
+
+.description-title { color: var(--main-blue); font-weight: bold; font-size: 18px; margin-bottom: 10px; display: block; }
+.description-text { line-height: 1.8; color: #ddd; text-align: justify; font-size: 15px; }
+
+.chapters-header { width: 100%; margin-top: 20px; margin-bottom: 30px; text-align: right; }
+.chapters-title { font-size: 24px; font-weight: bold; color: white; position: relative; padding-bottom: 8px; }
+.chapters-title::after { content: ""; position: absolute; bottom: 0; right: 0; width: 100px; height: 3px; background: var(--main-blue); }
+
+@media (max-width: 600px) { .cover-wrapper { width: 180px; } .anime-title-en { font-size: 22px; } }
+</style>
+</head>
+<body>
+
+<div id="loader"><div class="loading-text">RUN</div></div>
+
+<div class="header">
+  <a href="index.html" class="logo-link">
+    <div class="left-logo"><span class="stellar">STELLAR</span> <span class="run">RUN</span></div>
+  </a>
+  <div class="right">
+    <a href="index.html" class="back-container">
+       <div class="back-btn-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+       </div>
+       <span class="back-text">BACK</span>
+    </a>
+  </div>
+</div>
+
+<div class="anime-container">
+  <div class="cover-wrapper"><img src="sakamoto.jpg" alt="Sakamoto Days"></div>
+
+  <div class="title-wrapper">
+      <div class="anime-title-en">Sakamoto Days</div>
+      <svg class="bookmark-icon-page" id="mainBookmark" onclick="toggleBookmark()" width="30" height="30" viewBox="0 0 16 16">
+          <path d="M4 1C2.9 1 2 1.9 2 3V15.5L8 11.5L14 15.5V3C14 1.9 13.1 1 12 1H4ZM12 3H4C3.45 3 3 3.45 3 4V13.8L8 10.5L13 13.8V4C13 3.45 12.55 3 12 3Z"/>
+      </svg>
+  </div>
+
+  <div class="rating-display">
+      <span class="stars-blue">★★★★☆</span>
+      <span class="rating-score">7.8</span>
+  </div>
+
+  <div class="info-section">
+    <div class="info-row"><span class="label">الكاتب</span><span class="value">Yuto Suzuki</span></div>
+    <div class="info-row"><span class="label">التصنيف</span><span class="value">أكشن، كوميديا، شونين</span></div>
+    <div class="info-row"><span class="label">الحالة</span><span class="value">مستمر</span></div>
+    <div class="info-row"><span class="label">النوع</span><span class="value">مانجا</span></div>
+    <div class="info-row"><span class="label">سنة الإصدار</span><span class="value">2020</span></div>
+  </div>
+
+  <div class="description-section">
+    <span class="description-title">القصة:</span>
+    <p class="description-text">
+        تارو ساكاموتو كان القاتل المأجور الأعظم، يهابه جميع المجرمين ويحترمه القتلة. ولكن في أحد الأيام، وقع في الحب! فقرر التقاعد، الزواج، والأبوة.. والنتيجة؟ ساكاموتو اكتسب بعض الوزن الزائد وأصبح يدير متجراً صغيراً للبقالة. 
+        <br><br>
+        لكن عالم الجريمة لا يترك أحداً وشأنه بسهولة. الآن، يجب على ساكاموتو حماية حياته الهادئة وعائلته من القتلة المأجورين الآخرين والمنظمات التي تحاول تصفيته، كل ذلك مع الالتزام بقاعدة زوجته الصارمة: "ممنوع القتل داخل المنزل أو أمام الابنة!". أكشن أسطوري بلمسة كوميدية فريدة.
+    </p>
+  </div>
+
+  <div class="chapters-header">
+      <div class="chapters-title">فصول المانجا</div>
+  </div>
+</div>
+
+<script>
+function hideLoader() {
+    const loader = document.getElementById('loader');
+    if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+    }
+}
+window.addEventListener('load', () => {
+    hideLoader();
+    checkIfSaved();
+});
+
+function toggleBookmark() {
+    const icon = document.getElementById('mainBookmark');
+    const mangaData = {
+        title: "Sakamoto Days",
+        img: "sakamoto.jpg",
+        link: "sakamoto.html"
+    };
+    let saved = JSON.parse(localStorage.getItem('savedManga')) || [];
+    const index = saved.findIndex(m => m.title === mangaData.title);
+    if (index === -1) {
+        saved.push(mangaData);
+        icon.classList.add('active');
+    } else {
+        saved.splice(index, 1);
+        icon.classList.remove('active');
+    }
+    localStorage.setItem('savedManga', JSON.stringify(saved));
+}
+
+function checkIfSaved() {
+    const icon = document.getElementById('mainBookmark');
+    const saved = JSON.parse(localStorage.getItem('savedManga')) || [];
+    const isExist = saved.some(m => m.title === "Sakamoto Days");
+    if (isExist) icon.classList.add('active');
+}
+</script>
+</body>
+</html>
