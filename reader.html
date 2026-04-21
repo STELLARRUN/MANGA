@@ -3,65 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stellar Run - High Res Reader</title>
+    <title>Stellar Reader - القارئ الذكي</title>
     <style>
-        body { 
-            margin: 0; 
-            background: #000; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-        }
-        
-        .header { 
-            width: 100%; 
-            padding: 15px 0; 
-            background: rgba(17, 17, 17, 0.95); 
-            color: #00ccff; 
-            text-align: center; 
-            border-bottom: 2px solid #00ccff; 
-            position: sticky; 
-            top: 0; 
-            z-index: 100;
-            backdrop-filter: blur(5px);
+        /* --- تنسيقات الهوية (Stellar Style) --- */
+        :root {
+            --main-blue: #00ccff;
+            --dark-bg: #0a0a0a;
+            --card-bg: #111;
+            --text-color: #ffffff;
         }
 
-        .manga-container { 
-            width: 100%; 
-            /* شيلنا الـ max-width عشان الصور تاخد راحتها لو شاشتك كبيرة */
-            max-width: 1100px; 
-            line-height: 0; /* بيمنع الفراغات البيضاء بين الصور */
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-color);
+            overflow-x: hidden;
         }
 
-        .manga-page { 
-            width: 100%; 
-            height: auto;
+        /* شريط التحكم العلوي */
+        .reader-controls {
+            position: sticky;
+            top: 0;
+            background: #1a1a1a;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            border-bottom: 2px solid var(--main-blue);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .manga-info h2 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--main-blue);
+        }
+
+        select, button {
+            background: #222;
+            color: white;
+            border: 1px solid var(--main-blue);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: var(--main-blue);
+            color: black;
+        }
+
+        /* منطقة عرض الصور */
+        .manga-viewer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            min-height: 100vh;
+        }
+
+        .manga-viewer img {
+            width: 100%;
+            max-width: 900px;
             display: block;
-
-            /* --- السحر هنا لمنع بكسلة الصور --- */
-            image-rendering: -webkit-optimize-contrast; /* لأجهزة ابل وكرووم */
-            image-rendering: crisp-edges;               /* للمتصفحات العادية */
-            image-rendering: pixelated;                 /* بيمنع المتصفح إنه يعمل "تنعيم" للصورة فيخليها مغبشة */
-            
-            /* تفعيل خاصية الـ Hardware Acceleration */
-            transform: translateZ(0);
-            backface-visibility: hidden;
+            margin-bottom: 10px;
+            background: #111;
         }
 
+        /* قسم التعليقات */
+        .comments-section {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 5px;
+            resize: none;
+            margin-bottom: 10px;
+        }
+
+        .comment-card {
+            background: #1a1a1a;
+            padding: 15px;
+            margin-top: 15px;
+            border-right: 4px solid var(--main-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .delete-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="header">BLUE LOCK - CHAPTER 344 [ULTRA RES]</div>
-
-    <div class="manga-container">
-        <img src="https://i.postimg.cc/K4Vc6CMT/10.png" class="manga-page">
-        <img src="https://i.postimg.cc/xq7jwBzX/11.png" class="manga-page">
-        <img src="https://i.postimg.cc/nMMcwnCt/12.png" class="manga-page">
-        <img src="https://i.postimg.cc/VrZsLVZT/13.png" class="manga-page">
-        <img src="https://i.postimg.cc/xJpjT4p4/14.png" class="manga-page">
-        <img src="https://i.postimg.cc/XGY7WbLx/15.png" class="manga-page">
+    <div class="reader-controls">
+        <div class="manga-info">
+            <h2 id="mangaTitle">جاري التحميل...</h2>
+        </div>
+        
+        <select id="chapterSelect" onchange="loadNewChapter()">
+            </select>
+        
+        <div class="nav-buttons">
+            <button onclick="changeChapter('prev')">السابق</button>
+            <button onclick="changeChapter('next')">التالي</button>
+        </div>
     </div>
 
+    <div id="mangaViewer" class="manga-viewer">
+        </div>
+
+    <div class="comments-section">
+        <h3>التعليقات</h3>
+        <textarea id="commentText" placeholder="اكتب تعليقك هنا..."></textarea>
+        <button onclick="addComment()">نشر التعليق</button>
+        <div id="commentsList"></div>
+    </div>
+
+    <script>
+        /* --- مخزن البيانات الشامل (Blue Lock & Sakamoto Days) --- */
+        const mangaData = {
+            "bluelock": {
+                "title": "Blue Lock - بلو لوك",
+                "chapters": {
+                    "1": [
+                        "https://drive.google.com/uc?id=ID_صورة_1_بلو_لوك",
+                        "https://drive.google.com/uc?id=ID_صورة_2_بلو_لوك"
+                    ]
+                }
+            },
+            "sakamoto": {
+                "title": "Sakamoto Days - ساكاموتو دايز",
+                "chapters": {
+                    "1": [
+                        "https://drive.google.com/uc?id=ID_صورة_1_ساكاموتو",
+                        "https://drive.google.com/uc?id=ID_صورة_2_ساكاموتو"
+                    ]
+                }
+            }
+        };
+
+        // قراءة اسم المانجا والفصل من الرابط
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentManga = urlParams.get('manga') || "bluelock";
+        let currentChapter = urlParams.get('chapter') || "1";
+
+        function initReader() {
+            const data = mangaData[currentManga];
+            if (!data) {
+                document.body.innerHTML = "<h1 style='color:white; text-align:center;'>المانجا غير موجودة!</h1>";
+                return;
+            }
+
+            document.getElementById('mangaTitle').innerText = data.title;
+            
+            const select = document.getElementById('chapterSelect');
+            select.innerHTML = "";
+            for (let ch in data.chapters) {
+                select.innerHTML += `<option value="${ch}" ${ch == currentChapter ? 'selected' : ''}>فصل ${ch}</option>`;
+            }
+            
+            renderImages();
+        }
+
+        function renderImages() {
+            const viewer = document.getElementById('mangaViewer');
+            const chapterData = mangaData[currentManga].chapters[currentChapter];
+            
+            // التأكد إذا كان الفصل عبارة عن Array صور مباشرة
+            const images = Array.isArray(chapterData) ? chapterData : chapterData.images;
+            
+            viewer.innerHTML = images.map(img => `<img src="${img}" alt="Page">`).join('');
+            window.scrollTo(0,0);
+        }
+
+        function loadNewChapter() {
+            currentChapter = document.getElementById('chapterSelect').value;
+            renderImages();
+        }
+
+        function changeChapter(direction) {
+            const select = document.getElementById('chapterSelect');
+            if(direction === 'next' && select.selectedIndex < select.length - 1) {
+                select.selectedIndex++;
+            } else if(direction === 'prev' && select.selectedIndex > 0) {
+                select.selectedIndex--;
+            }
+            loadNewChapter();
+        }
+
+        function addComment() {
+            const text = document.getElementById('commentText').value;
+            if (text.trim() === "") return;
+            const list = document.getElementById('commentsList');
+            const id = Date.now();
+            list.innerHTML = `<div class="comment-card" id="c-${id}"><p>${text}</p><button class="delete-btn" onclick="document.getElementById('c-${id}').remove()">مسح</button></div>` + list.innerHTML;
+            document.getElementById('commentText').value = "";
+        }
+
+        initReader();
+    </script>
 </body>
 </html>
