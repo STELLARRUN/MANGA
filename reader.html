@@ -71,13 +71,12 @@
             display: block;
             margin-bottom: 10px;
             background: #111;
-            /* الحفاظ على جودة الصورة الأصلية ومنع التغبيش */
             image-rendering: -webkit-optimize-contrast;
             image-rendering: crisp-edges;
             height: auto;
         }
 
-        /* قسم التعليقات - تحسين الاستجابة للموبايل */
+        /* قسم التعليقات */
         .comments-section {
             max-width: 800px;
             margin: 40px auto;
@@ -96,7 +95,7 @@
             border-radius: 5px;
             resize: none;
             margin-bottom: 10px;
-            box-sizing: border-box; /* لضمان عدم خروج النص عن الإطار في الموبايل */
+            box-sizing: border-box;
         }
 
         .comment-card {
@@ -125,37 +124,52 @@
             margin: 5px 0 0 0;
             color: #ddd;
             font-size: 15px;
-            word-wrap: break-word; /* لمنع تمدد النص الطويل وتخريب التصميم */
+            word-wrap: break-word;
         }
 
-        .delete-btn {
-            background: #ff4444;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-
-        /* تنسيقات خاصة للموبايل فقط */
+        /* تنسيقات الموبايل - التعديل هنا فقط */
         @media (max-width: 768px) {
             .reader-controls {
-                padding: 10px;
+                padding: 10px 5px;
+                flex-direction: column; /* جعل العنوان في سطر والزراير في سطر */
+                gap: 10px;
             }
-            .manga-info h2 { font-size: 14px; }
-            .nav-buttons button { padding: 6px 10px; font-size: 12px; }
+            
+            .manga-info {
+                width: 100%;
+                text-align: center;
+            }
+
+            .manga-info h2 { font-size: 15px; }
+
+            /* تنسيق الزراير والقائمة في سطر واحد متساوي */
+            #chapterSelect {
+                width: 40%;
+                font-size: 13px;
+                padding: 6px;
+            }
+
+            .nav-buttons {
+                display: flex;
+                gap: 5px;
+                width: 55%;
+                justify-content: center;
+            }
+
+            .nav-buttons button {
+                flex: 1;
+                padding: 8px 5px;
+                font-size: 12px;
+                white-space: nowrap; /* يمنع الكلمة تنقسم سطرين */
+            }
             
             .comments-section {
                 margin: 20px 10px;
                 padding: 15px;
             }
             
-            .comment-card {
-                padding: 12px;
-            }
-            
             .comments-section button {
-                width: 100%; /* زر الإرسال بعرض الشاشة في الموبايل */
+                width: 100%;
                 padding: 12px;
             }
         }
@@ -169,7 +183,7 @@
         </div>
         
         <select id="chapterSelect" onchange="loadNewChapter()">
-            </select>
+        </select>
         
         <div class="nav-buttons">
             <button onclick="changeChapter('prev')">السابق</button>
@@ -178,7 +192,7 @@
     </div>
 
     <div id="mangaViewer" class="manga-viewer">
-        </div>
+    </div>
 
     <div class="comments-section">
         <h3>التعليقات</h3>
@@ -193,7 +207,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-        /* --- إعدادات Firebase الخاصة بك --- */
         const firebaseConfig = {
             apiKey: "AIzaSyBx30dVt4175Hi7WU3Gl6987LY4lj8n048",
             authDomain: "stellar-run-b8b43.firebaseapp.com",
@@ -208,7 +221,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        /* --- مخزن البيانات اليدوي (للاحتياط) --- */
         const mangaData = {
             "bluelock": { "title": "Blue Lock - بلو لوك", "chapters": { "1": [] } },
             "sakamoto": { "title": "Sakamoto Days - ساكاموتو دايز", "chapters": { "1": [] } },
@@ -219,14 +231,11 @@
         let currentManga = urlParams.get('manga') || "bluelock";
         let currentChapter = urlParams.get('chapter') || "1";
 
-        // دالة تهيئة القارئ - معدلة لجلب البيانات من Firestore
         async function initReader() {
-            // تحديث العنوان
             if (mangaData[currentManga]) {
                 document.getElementById('mangaTitle').innerText = mangaData[currentManga].title;
             }
 
-            // محاولة جلب جميع فصول هذه المانجا لتعبئة القائمة
             try {
                 const snapshot = await db.collection("manga_data")
                     .where("mangaId", "==", currentManga)
@@ -238,7 +247,6 @@
                 if (!snapshot.empty) {
                     let chaptersFound = [];
                     snapshot.forEach(doc => chaptersFound.push(doc.data().chapterNum));
-                    // ترتيب الفصول تصاعدياً
                     chaptersFound.sort((a, b) => a - b);
                     
                     chaptersFound.forEach(ch => {
@@ -249,30 +257,26 @@
                 }
             } catch (e) { console.log("Error loading chapters list", e); }
 
-            renderImages(); // تحميل صور الفصل الحالي
-            loadComments(); // تحميل التعليقات
+            renderImages();
+            loadComments();
         }
 
-        // دالة عرض الصور - معدلة لتقرأ من Firestore
         async function renderImages() {
             const viewer = document.getElementById('mangaViewer');
             viewer.innerHTML = "<p style='color:var(--main-blue)'>جاري تحميل الصفحات...</p>";
 
             try {
-                // البحث عن الفصل المحدد في السيرفر
                 const docId = `${currentManga}_ch_${currentChapter}`;
                 const doc = await db.collection("manga_data").doc(docId).get();
 
                 if (doc.exists) {
                     const data = doc.data();
-                    // استخدام loading="eager" للصفحات الأولى لتحسين سرعة ظهور الجودة العالية
                     viewer.innerHTML = data.images.map((img, index) => `<img src="${img}" alt="Page ${index+1}" loading="${index < 2 ? 'eager' : 'lazy'}">`).join('');
                     document.getElementById('mangaTitle').innerText = data.mangaTitle + " - فصل " + currentChapter;
                 } else {
                     viewer.innerHTML = "<h2 style='color:white;'>عذراً، هذا الفصل غير متوفر حالياً على السيرفر.</h2>";
                 }
             } catch (error) {
-                console.error("Error rendering images:", error);
                 viewer.innerHTML = "<p>حدث خطأ أثناء تحميل الصور.</p>";
             }
             window.scrollTo(0,0);
@@ -280,10 +284,8 @@
 
         function loadNewChapter() {
             currentChapter = document.getElementById('chapterSelect').value;
-            // تحديث الرابط بدون إعادة تحميل الصفحة
             const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?manga=${currentManga}&chapter=${currentChapter}`;
             window.history.pushState({path:newurl},'',newurl);
-            
             renderImages();
             loadComments();
         }
@@ -297,8 +299,6 @@
             }
             loadNewChapter();
         }
-
-        /* --- نظام التعليقات عبر Firebase --- */
 
         async function addComment() {
             const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -330,7 +330,6 @@
 
         function loadComments() {
             const list = document.getElementById('commentsList');
-            
             db.collection("chapter_comments")
                 .where("mangaId", "==", currentManga)
                 .where("chapterId", "==", currentChapter)
