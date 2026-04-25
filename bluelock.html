@@ -187,19 +187,68 @@ body {
       <div class="chapters-title">فصول المانجا</div>
   </div>
 
-  <div class="chapters-list">
-      <a href="reader.html?ch=344&pages=20" class="chapter-card">
-          <div class="chapter-info">
-              <span class="chapter-number">CH. 344</span>
-              <span class="chapter-date">2026-04-20</span>
-          </div>
-          <div class="read-btn">اقرأ الآن</div>
-      </a>
-      
-      </div>
+  <div class="chapters-list" id="chapters-list-container">
+      <p id="loading-msg" style="text-align: center; color: #666;">جاري تحميل الفصول...</p>
+  </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
 <script>
+const firebaseConfig = {
+    apiKey: "AIzaSyBx30dVt4175Hi7WU3Gl6987LY4lj8n048",
+    authDomain: "stellar-run-b8b43.firebaseapp.com",
+    projectId: "stellar-run-b8b43",
+    appId: "1:18726084276:web:2c1262e4b55810ec77c1e1"
+};
+
+if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+const db = firebase.firestore();
+
+async function loadChapters() {
+    const container = document.getElementById('chapters-list-container');
+    const targetMangaId = "bluelock"; 
+
+    try {
+        // جلب كافة الفصول وتصفيتها يدوياً لتفادي مشاكل الحروف الكبيرة/الصغيرة والمسافات
+        const snapshot = await db.collection("manga_data").get();
+        let chapters = [];
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.mangaId && data.mangaId.toLowerCase().trim() === targetMangaId) {
+                chapters.push(data);
+            }
+        });
+
+        if (chapters.length === 0) {
+            container.innerHTML = "<p style='text-align:center; color:#666;'>لا توجد فصول مرفوعة حالياً لهذه المانجا.</p>";
+            return;
+        }
+
+        // ترتيب الفصول تنازلياً حسب رقم الفصل
+        chapters.sort((a, b) => Number(b.chapterNum) - Number(a.chapterNum));
+
+        let html = "";
+        chapters.forEach(data => {
+            const date = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleDateString('en-CA') : "2026-04-20";
+            html += `
+                <a href="reader.html?manga=${data.mangaId}&chapter=${data.chapterNum}" class="chapter-card">
+                    <div class="chapter-info">
+                        <span class="chapter-number">CH. ${data.chapterNum}</span>
+                        <span class="chapter-date">${date}</span>
+                    </div>
+                    <div class="read-btn">اقرأ الآن</div>
+                </a>`;
+        });
+        container.innerHTML = html;
+    } catch (e) {
+        console.error("Firebase Error: ", e);
+        container.innerHTML = "<p style='text-align:center; color:red;'>حدث خطأ أثناء جلب الفصول من قاعدة البيانات.</p>";
+    }
+}
+
 function hideLoader() {
     const loader = document.getElementById('loader');
     if (loader) {
@@ -207,10 +256,20 @@ function hideLoader() {
         setTimeout(() => { loader.style.display = 'none'; }, 600);
     }
 }
-window.addEventListener('load', hideLoader);
+
+window.addEventListener('load', () => {
+    hideLoader();
+    loadChapters(); 
+});
+
 setTimeout(hideLoader, 3000);
 
 function toggleBookmark() {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if (!isLoggedIn) {
+        alert("سجل دخولك أولاً لتتمكن من إضافة هذا العمل للمحفوظات!");
+        return;
+    }
     const icon = document.getElementById('mainBookmark');
     icon.classList.toggle('active');
 }

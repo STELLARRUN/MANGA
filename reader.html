@@ -56,7 +56,7 @@
             color: black;
         }
 
-        /* منطقة عرض الصور */
+        /* منطقة عرض الصور - تحسين الجودة */
         .manga-viewer {
             display: flex;
             flex-direction: column;
@@ -71,9 +71,13 @@
             display: block;
             margin-bottom: 10px;
             background: #111;
+            /* الحفاظ على جودة الصورة الأصلية ومنع التغبيش */
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            height: auto;
         }
 
-        /* قسم التعليقات */
+        /* قسم التعليقات - تحسين الاستجابة للموبايل */
         .comments-section {
             max-width: 800px;
             margin: 40px auto;
@@ -92,6 +96,7 @@
             border-radius: 5px;
             resize: none;
             margin-bottom: 10px;
+            box-sizing: border-box; /* لضمان عدم خروج النص عن الإطار في الموبايل */
         }
 
         .comment-card {
@@ -100,8 +105,27 @@
             margin-top: 15px;
             border-right: 4px solid var(--main-blue);
             display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .comment-header {
+            display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+
+        .user-name {
+            color: var(--main-blue);
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .comment-text {
+            margin: 5px 0 0 0;
+            color: #ddd;
+            font-size: 15px;
+            word-wrap: break-word; /* لمنع تمدد النص الطويل وتخريب التصميم */
         }
 
         .delete-btn {
@@ -110,6 +134,30 @@
             border: none;
             padding: 5px 10px;
             border-radius: 3px;
+            cursor: pointer;
+        }
+
+        /* تنسيقات خاصة للموبايل فقط */
+        @media (max-width: 768px) {
+            .reader-controls {
+                padding: 10px;
+            }
+            .manga-info h2 { font-size: 14px; }
+            .nav-buttons button { padding: 6px 10px; font-size: 12px; }
+            
+            .comments-section {
+                margin: 20px 10px;
+                padding: 15px;
+            }
+            
+            .comment-card {
+                padding: 12px;
+            }
+            
+            .comments-section button {
+                width: 100%; /* زر الإرسال بعرض الشاشة في الموبايل */
+                padding: 12px;
+            }
         }
     </style>
 </head>
@@ -136,69 +184,108 @@
         <h3>التعليقات</h3>
         <textarea id="commentText" placeholder="اكتب تعليقك هنا..."></textarea>
         <button onclick="addComment()">نشر التعليق</button>
-        <div id="commentsList"></div>
+        <div id="commentsList">
+            <p style="color:#666; padding: 20px;">جاري تحميل تعليقات هذا الفصل...</p>
+        </div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
     <script>
-        /* --- مخزن البيانات الشامل (Blue Lock & Sakamoto Days) --- */
-        const mangaData = {
-            "bluelock": {
-                "title": "Blue Lock - بلو لوك",
-                "chapters": {
-                    "1": [
-                        "https://drive.google.com/uc?id=ID_صورة_1_بلو_لوك",
-                        "https://drive.google.com/uc?id=ID_صورة_2_بلو_لوك"
-                    ]
-                }
-            },
-            "sakamoto": {
-                "title": "Sakamoto Days - ساكاموتو دايز",
-                "chapters": {
-                    "1": [
-                        "https://drive.google.com/uc?id=ID_صورة_1_ساكاموتو",
-                        "https://drive.google.com/uc?id=ID_صورة_2_ساكاموتو"
-                    ]
-                }
-            }
+        /* --- إعدادات Firebase الخاصة بك --- */
+        const firebaseConfig = {
+            apiKey: "AIzaSyBx30dVt4175Hi7WU3Gl6987LY4lj8n048",
+            authDomain: "stellar-run-b8b43.firebaseapp.com",
+            databaseURL: "https://stellar-run-b8b43-default-rtdb.firebaseio.com",
+            projectId: "stellar-run-b8b43",
+            storageBucket: "stellar-run-b8b43.firebasestorage.app",
+            messagingSenderId: "18726084276",
+            appId: "1:18726084276:web:2c1262e4b55810ec77c1e1",
+            measurementId: "G-RQZBKCZ6LM"
         };
 
-        // قراءة اسم المانجا والفصل من الرابط
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        /* --- مخزن البيانات اليدوي (للاحتياط) --- */
+        const mangaData = {
+            "bluelock": { "title": "Blue Lock - بلو لوك", "chapters": { "1": [] } },
+            "sakamoto": { "title": "Sakamoto Days - ساكاموتو دايز", "chapters": { "1": [] } },
+            "conan": { "title": "Detective Conan - المحقق كونان", "chapters": { "1": [] } }
+        };
+
         const urlParams = new URLSearchParams(window.location.search);
         let currentManga = urlParams.get('manga') || "bluelock";
         let currentChapter = urlParams.get('chapter') || "1";
 
-        function initReader() {
-            const data = mangaData[currentManga];
-            if (!data) {
-                document.body.innerHTML = "<h1 style='color:white; text-align:center;'>المانجا غير موجودة!</h1>";
-                return;
+        // دالة تهيئة القارئ - معدلة لجلب البيانات من Firestore
+        async function initReader() {
+            // تحديث العنوان
+            if (mangaData[currentManga]) {
+                document.getElementById('mangaTitle').innerText = mangaData[currentManga].title;
             }
 
-            document.getElementById('mangaTitle').innerText = data.title;
-            
-            const select = document.getElementById('chapterSelect');
-            select.innerHTML = "";
-            for (let ch in data.chapters) {
-                select.innerHTML += `<option value="${ch}" ${ch == currentChapter ? 'selected' : ''}>فصل ${ch}</option>`;
-            }
-            
-            renderImages();
+            // محاولة جلب جميع فصول هذه المانجا لتعبئة القائمة
+            try {
+                const snapshot = await db.collection("manga_data")
+                    .where("mangaId", "==", currentManga)
+                    .get();
+                
+                const select = document.getElementById('chapterSelect');
+                select.innerHTML = "";
+                
+                if (!snapshot.empty) {
+                    let chaptersFound = [];
+                    snapshot.forEach(doc => chaptersFound.push(doc.data().chapterNum));
+                    // ترتيب الفصول تصاعدياً
+                    chaptersFound.sort((a, b) => a - b);
+                    
+                    chaptersFound.forEach(ch => {
+                        select.innerHTML += `<option value="${ch}" ${ch == currentChapter ? 'selected' : ''}>فصل ${ch}</option>`;
+                    });
+                } else {
+                    select.innerHTML = `<option>لا توجد فصول</option>`;
+                }
+            } catch (e) { console.log("Error loading chapters list", e); }
+
+            renderImages(); // تحميل صور الفصل الحالي
+            loadComments(); // تحميل التعليقات
         }
 
-        function renderImages() {
+        // دالة عرض الصور - معدلة لتقرأ من Firestore
+        async function renderImages() {
             const viewer = document.getElementById('mangaViewer');
-            const chapterData = mangaData[currentManga].chapters[currentChapter];
-            
-            // التأكد إذا كان الفصل عبارة عن Array صور مباشرة
-            const images = Array.isArray(chapterData) ? chapterData : chapterData.images;
-            
-            viewer.innerHTML = images.map(img => `<img src="${img}" alt="Page">`).join('');
+            viewer.innerHTML = "<p style='color:var(--main-blue)'>جاري تحميل الصفحات...</p>";
+
+            try {
+                // البحث عن الفصل المحدد في السيرفر
+                const docId = `${currentManga}_ch_${currentChapter}`;
+                const doc = await db.collection("manga_data").doc(docId).get();
+
+                if (doc.exists) {
+                    const data = doc.data();
+                    // استخدام loading="eager" للصفحات الأولى لتحسين سرعة ظهور الجودة العالية
+                    viewer.innerHTML = data.images.map((img, index) => `<img src="${img}" alt="Page ${index+1}" loading="${index < 2 ? 'eager' : 'lazy'}">`).join('');
+                    document.getElementById('mangaTitle').innerText = data.mangaTitle + " - فصل " + currentChapter;
+                } else {
+                    viewer.innerHTML = "<h2 style='color:white;'>عذراً، هذا الفصل غير متوفر حالياً على السيرفر.</h2>";
+                }
+            } catch (error) {
+                console.error("Error rendering images:", error);
+                viewer.innerHTML = "<p>حدث خطأ أثناء تحميل الصور.</p>";
+            }
             window.scrollTo(0,0);
         }
 
         function loadNewChapter() {
             currentChapter = document.getElementById('chapterSelect').value;
+            // تحديث الرابط بدون إعادة تحميل الصفحة
+            const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?manga=${currentManga}&chapter=${currentChapter}`;
+            window.history.pushState({path:newurl},'',newurl);
+            
             renderImages();
+            loadComments();
         }
 
         function changeChapter(direction) {
@@ -211,13 +298,60 @@
             loadNewChapter();
         }
 
-        function addComment() {
-            const text = document.getElementById('commentText').value;
-            if (text.trim() === "") return;
+        /* --- نظام التعليقات عبر Firebase --- */
+
+        async function addComment() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            const userStr = localStorage.getItem('currentUser');
+            const userData = userStr ? JSON.parse(userStr) : null;
+            const userName = userData ? userData.name : "متابع ستيلار";
+            const text = document.getElementById('commentText').value.trim();
+
+            if (!isLoggedIn) {
+                alert("سجل دخولك أولاً لتشارك في نقاش هذا الفصل!");
+                return;
+            }
+
+            if (text === "") return;
+
+            try {
+                await db.collection("chapter_comments").add({
+                    mangaId: currentManga,
+                    chapterId: currentChapter,
+                    user: userName,
+                    commentText: text,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                document.getElementById('commentText').value = "";
+            } catch (error) {
+                console.error("خطأ في النشر: ", error);
+            }
+        }
+
+        function loadComments() {
             const list = document.getElementById('commentsList');
-            const id = Date.now();
-            list.innerHTML = `<div class="comment-card" id="c-${id}"><p>${text}</p><button class="delete-btn" onclick="document.getElementById('c-${id}').remove()">مسح</button></div>` + list.innerHTML;
-            document.getElementById('commentText').value = "";
+            
+            db.collection("chapter_comments")
+                .where("mangaId", "==", currentManga)
+                .where("chapterId", "==", currentChapter)
+                .orderBy("createdAt", "desc")
+                .onSnapshot((snapshot) => {
+                    list.innerHTML = "";
+                    if (snapshot.empty) {
+                        list.innerHTML = '<p style="color:#666;">لا توجد تعليقات على هذا الفصل، كن أول من يعلق!</p>';
+                        return;
+                    }
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        list.innerHTML += `
+                            <div class="comment-card">
+                                <div class="comment-header">
+                                    <span class="user-name">${data.user}</span>
+                                </div>
+                                <p class="comment-text">${data.commentText}</p>
+                            </div>`;
+                    });
+                });
         }
 
         initReader();
