@@ -259,11 +259,14 @@ body {
   <div class="modal-content">
     <span class="close-btn" onclick="closeModals()">&times;</span>
     <div id="authUI">
-        <h2 style="color: var(--main-blue); margin-bottom: 25px;">تسجيل الدخول</h2>
-        <input type="text" id="regName" class="input-field" placeholder="الاسم (للتسجيل الجديد)">
+        <h2 id="authTitle" style="color: var(--main-blue); margin-bottom: 25px;">تسجيل الدخول</h2>
+        <input type="text" id="regName" class="input-field" placeholder="الاسم (للتسجيل الجديد)" style="display: none;">
         <input type="email" id="regEmail" class="input-field" placeholder="البريد الإلكتروني">
         <input type="password" id="regPass" class="input-field" placeholder="كلمة السر">
-        <button class="main-btn" onclick="handleAuth()">دخول / تسجيل</button>
+        <button id="authBtn" class="main-btn" onclick="handleAuth()">دخول</button>
+        <p id="toggleAuthText" style="margin-top: 20px; font-size: 14px; color: #888; cursor: pointer;">
+            ليس لديك حساب؟ <span onclick="toggleAuthMode(true)" style="color: var(--main-blue); font-weight: bold;">أنشئ حساباً الآن</span>
+        </p>
     </div>
     <div id="dashboardUI" style="display:none;">
         <h2 id="helloUser" style="color: var(--main-blue); margin-bottom: 20px;">أهلاً</h2>
@@ -287,6 +290,29 @@ const firebaseConfig = {
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+// متغير لحالة الواجهة (تسجيل دخول أو إنشاء حساب)
+let isSignUpMode = false;
+
+function toggleAuthMode(isSignUp) {
+    isSignUpMode = isSignUp;
+    const nameField = document.getElementById('regName');
+    const authTitle = document.getElementById('authTitle');
+    const authBtn = document.getElementById('authBtn');
+    const toggleText = document.getElementById('toggleAuthText');
+
+    if (isSignUpMode) {
+        nameField.style.display = 'block';
+        authTitle.innerText = "إنشاء حساب جديد";
+        authBtn.innerText = "تسجيل حساب";
+        toggleText.innerHTML = 'لديك حساب بالفعل؟ <span onclick="toggleAuthMode(false)" style="color: var(--main-blue); font-weight: bold;">سجل دخولك</span>';
+    } else {
+        nameField.style.display = 'none';
+        authTitle.innerText = "تسجيل الدخول";
+        authBtn.innerText = "دخول";
+        toggleText.innerHTML = 'ليس لديك حساب؟ <span onclick="toggleAuthMode(true)" style="color: var(--main-blue); font-weight: bold;">أنشئ حساباً الآن</span>';
+    }
+}
 
 function renderStars(rating) {
     let starsHTML = '';
@@ -372,6 +398,8 @@ function updateUIState() {
         document.getElementById('userIcon').classList.add('logged-in');
         document.getElementById('authUI').style.display = 'none';
         document.getElementById('dashboardUI').style.display = 'block';
+        const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        if(userData.name) document.getElementById('helloUser').innerText = "أهلاً، " + userData.name;
     }
 }
 
@@ -381,11 +409,32 @@ function closeModals() { document.getElementById('userModal').style.display = 'n
 async function handleAuth() {
     const e = document.getElementById('regEmail').value;
     const p = document.getElementById('regPass').value;
+    const n = document.getElementById('regName').value;
+
     try {
-        await auth.signInWithEmailAndPassword(e, p);
+        if (isSignUpMode) {
+            // إنشاء حساب جديد
+            const userCred = await auth.createUserWithEmailAndPassword(e, p);
+            const user = userCred.user;
+            // حفظ بيانات المستخدم في Firestore
+            await db.collection("users").doc(user.uid).set({ name: n, email: e });
+            localStorage.setItem('currentUser', JSON.stringify({ name: n, email: e }));
+        } else {
+            // تسجيل دخول
+            const userCred = await auth.signInWithEmailAndPassword(e, p);
+            const userDoc = await db.collection("users").doc(userCred.user.uid).get();
+            if(userDoc.exists) {
+                localStorage.setItem('currentUser', JSON.stringify(userDoc.data()));
+            }
+        }
         localStorage.setItem('isLoggedIn', 'true');
         location.reload();
-    } catch (e) { alert(e.message); }
+    } catch (error) { 
+        let msg = "بيانات الدخول غير صحيحة، تأكد من الإيميل والباسورد.";
+        if (error.code === 'auth/email-already-in-use') msg = "هذا البريد مسجل بالفعل.";
+        if (error.code === 'auth/weak-password') msg = "كلمة السر ضعيفة جداً.";
+        alert(msg); 
+    }
 }
 
 function logout() { auth.signOut().then(() => { localStorage.clear(); location.reload(); }); }
