@@ -163,6 +163,7 @@ body {
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <script>
@@ -174,10 +175,14 @@ const firebaseConfig = {
 };
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const db = firebase.firestore();
+const auth = firebase.auth();
+
+// المعرف الخاص بجاشياكوتا
+const currentMangaId = "gachiakuta";
 
 async function loadGachiakutaChapters() {
     const container = document.getElementById('chaptersContainer');
-    const targetMangaId = "gachiakuta"; 
+    const targetMangaId = currentMangaId; 
 
     try {
         const snapshot = await db.collection("manga_data").get();
@@ -204,7 +209,7 @@ async function loadGachiakutaChapters() {
             html += `
                 <a href="reader.html?manga=${encodeURIComponent(data.mangaId)}&chapter=${data.chapterNum}" class="chapter-item">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <span class="ch-number">فصل ${data.chapterNum}</span>
+                        <span class="ch-number">CH. ${data.chapterNum}</span>
                         <span style="color: #666; font-size: 12px;">${date}</span>
                     </div>
                     <div class="read-btn">اقرأ الآن</div>
@@ -225,46 +230,54 @@ function hideLoader() {
     }
 }
 
+// فحص حالة الحفظ من الفايربيز عند التحميل
+async function checkIfSaved() {
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            const doc = await db.collection("users").doc(user.uid).collection("bookmarks").doc(currentMangaId).get();
+            if (doc.exists) {
+                document.getElementById('mainBookmark').classList.add('active');
+            }
+        }
+    });
+}
+
 window.addEventListener('load', () => {
     hideLoader();
     checkIfSaved();
     loadGachiakutaChapters();
 });
 
-function toggleBookmark() {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-
-    if (!isLoggedIn) {
+async function toggleBookmark() {
+    const user = auth.currentUser;
+    if (!user) {
         alert("سجل دخولك أولاً لتتمكن من إضافة هذا العمل للمحفوظات!");
         return; 
     }
 
     const icon = document.getElementById('mainBookmark');
-    const mangaData = {
-        title: "Gachiakuta",
-        img: "gachiakuta.jpg",
-        link: "gachiakuta.html"
-    };
+    const mangaTitle = document.getElementById('mangaTitle').innerText;
+    const mangaImg = document.getElementById('mangaImg').getAttribute('src');
 
-    let saved = JSON.parse(localStorage.getItem('savedManga')) || [];
-    const index = saved.findIndex(m => m.title === mangaData.title);
-
-    if (index === -1) {
-        saved.push(mangaData);
-        icon.classList.add('active');
-    } else {
-        saved.splice(index, 1);
-        icon.classList.remove('active');
+    try {
+        if (icon.classList.contains('active')) {
+            // حذف من مفضلات الفايربيز
+            await db.collection("users").doc(user.uid).collection("bookmarks").doc(currentMangaId).delete();
+            icon.classList.remove('active');
+        } else {
+            // إضافة لمفضلات الفايربيز
+            await db.collection("users").doc(user.uid).collection("bookmarks").doc(currentMangaId).set({
+                mangaId: currentMangaId,
+                mangaTitle: mangaTitle,
+                poster: mangaImg,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            icon.classList.add('active');
+        }
+    } catch (error) {
+        console.error("Error updating bookmark: ", error);
+        alert("حدث خطأ أثناء تحديث المفضلات.");
     }
-
-    localStorage.setItem('savedManga', JSON.stringify(saved));
-}
-
-function checkIfSaved() {
-    const icon = document.getElementById('mainBookmark');
-    const saved = JSON.parse(localStorage.getItem('savedManga')) || [];
-    const isExist = saved.some(m => m.title === "Gachiakuta");
-    if (isExist) icon.classList.add('active');
 }
 </script>
 

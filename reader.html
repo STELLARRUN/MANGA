@@ -330,26 +330,40 @@
 
         function loadComments() {
             const list = document.getElementById('commentsList');
+            const chapterNum = Number(currentChapter); // لضمان المطابقة إذا كان الرقم مخزن كـ Number
+
             db.collection("chapter_comments")
                 .where("mangaId", "==", currentManga)
-                .where("chapterId", "==", currentChapter)
-                .orderBy("createdAt", "desc")
+                .where("chapterId", "in", [currentChapter, chapterNum]) 
                 .onSnapshot((snapshot) => {
                     list.innerHTML = "";
                     if (snapshot.empty) {
                         list.innerHTML = '<p style="color:#666;">لا توجد تعليقات على هذا الفصل، كن أول من يعلق!</p>';
                         return;
                     }
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
+                    
+                    // ترتيب يدوي للأحدث لتفجنب مشاكل الـ Index في البداية
+                    let comments = [];
+                    snapshot.forEach(doc => comments.push(doc.data()));
+                    comments.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+                    comments.forEach((data) => {
+                        // إضافة تحويل الوقت والتاريخ هنا
+                        const dateObj = data.createdAt ? data.createdAt.toDate() : new Date();
+                        const commentTime = dateObj.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                        const commentDate = dateObj.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' });
+
                         list.innerHTML += `
                             <div class="comment-card">
                                 <div class="comment-header">
                                     <span class="user-name">${data.user}</span>
+                                    <span style="color: #555; font-size: 11px; direction: ltr;">${commentDate} | ${commentTime}</span>
                                 </div>
                                 <p class="comment-text">${data.commentText}</p>
                             </div>`;
                     });
+                }, (error) => {
+                    console.error("Error loading comments: ", error);
                 });
         }
 

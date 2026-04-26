@@ -152,10 +152,10 @@ body {
 </div>
 
 <div class="anime-container">
-  <div class="cover-wrapper"><img src="bluelock.jpg" alt="Blue Lock"></div>
+  <div class="cover-wrapper"><img src="bluelock.jpg" alt="Blue Lock" id="mangaPoster"></div>
 
   <div class="title-wrapper">
-      <div class="anime-title-en">Blue Lock</div>
+      <div class="anime-title-en" id="mangaTitle">Blue Lock</div>
       <svg class="bookmark-icon-page" id="mainBookmark" onclick="toggleBookmark()" width="30" height="30" viewBox="0 0 16 16">
           <path d="M4 1C2.9 1 2 1.9 2 3V15.5L8 11.5L14 15.5V3C14 1.9 13.1 1 12 1H4ZM12 3H4C3.45 3 3 3.45 3 4V13.8L8 10.5L13 13.8V4C13 3.45 12.55 3 12 3Z"/>
       </svg>
@@ -193,6 +193,7 @@ body {
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <script>
@@ -204,14 +205,17 @@ const firebaseConfig = {
 };
 
 if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+const auth = firebase.auth();
 const db = firebase.firestore();
+
+// معرف المانجا الحالي
+const currentMangaId = "bluelock";
 
 async function loadChapters() {
     const container = document.getElementById('chapters-list-container');
-    const targetMangaId = "bluelock"; 
+    const targetMangaId = currentMangaId; 
 
     try {
-        // جلب كافة الفصول وتصفيتها يدوياً لتفادي مشاكل الحروف الكبيرة/الصغيرة والمسافات
         const snapshot = await db.collection("manga_data").get();
         let chapters = [];
 
@@ -227,7 +231,6 @@ async function loadChapters() {
             return;
         }
 
-        // ترتيب الفصول تنازلياً حسب رقم الفصل
         chapters.sort((a, b) => Number(b.chapterNum) - Number(a.chapterNum));
 
         let html = "";
@@ -249,6 +252,18 @@ async function loadChapters() {
     }
 }
 
+// فحص حالة المفضلات عند فتح الصفحة
+async function checkBookmarkStatus() {
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            const doc = await db.collection("users").doc(user.uid).collection("bookmarks").doc(currentMangaId).get();
+            if (doc.exists) {
+                document.getElementById('mainBookmark').classList.add('active');
+            }
+        }
+    });
+}
+
 function hideLoader() {
     const loader = document.getElementById('loader');
     if (loader) {
@@ -259,19 +274,42 @@ function hideLoader() {
 
 window.addEventListener('load', () => {
     hideLoader();
-    loadChapters(); 
+    loadChapters();
+    checkBookmarkStatus();
 });
 
 setTimeout(hideLoader, 3000);
 
-function toggleBookmark() {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    if (!isLoggedIn) {
+async function toggleBookmark() {
+    const user = auth.currentUser;
+    if (!user) {
         alert("سجل دخولك أولاً لتتمكن من إضافة هذا العمل للمحفوظات!");
         return;
     }
+
     const icon = document.getElementById('mainBookmark');
-    icon.classList.toggle('active');
+    const mangaTitle = document.getElementById('mangaTitle').innerText;
+    const mangaPoster = document.getElementById('mangaPoster').getAttribute('src');
+
+    try {
+        if (icon.classList.contains('active')) {
+            // حذف من المفضلات
+            await db.collection("users").doc(user.uid).collection("bookmarks").doc(currentMangaId).delete();
+            icon.classList.remove('active');
+        } else {
+            // إضافة للمفضلات
+            await db.collection("users").doc(user.uid).collection("bookmarks").doc(currentMangaId).set({
+                mangaId: currentMangaId,
+                mangaTitle: mangaTitle,
+                poster: mangaPoster,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            icon.classList.add('active');
+        }
+    } catch (error) {
+        console.error("Error updating bookmark: ", error);
+        alert("حدث خطأ أثناء تحديث المفضلات.");
+    }
 }
 </script>
 
