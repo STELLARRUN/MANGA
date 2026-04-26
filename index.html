@@ -141,7 +141,7 @@ body {
 .card:hover .preview-box, .card.active .preview-box { opacity: 1; visibility: visible; }
 .status-badge { background: var(--main-blue); color: #000; padding: 3px 12px; border-radius: 5px; font-size: 12px; font-weight: 900; margin-bottom: 15px; }
 
-/* تعديل المودال ليكون متوسط الشاشة تماماً في الكمبيوتر */
+/* المودال - التوسط في الكمبيوتر */
 .modal { 
     display: none; 
     position: fixed; 
@@ -152,13 +152,10 @@ body {
     height: 100%; 
     background: rgba(0,0,0,0.8); 
     backdrop-filter: blur(10px); 
-    /* هذا الجزء يوسط المحتوى */
-    display: none; 
     align-items: center; 
     justify-content: center; 
 }
 
-/* تعديل شكل القائمة (المحتوى) */
 .modal-content { 
     background: var(--dark-bg); 
     padding: 35px; 
@@ -174,7 +171,7 @@ body {
 
 .close-btn { position: absolute; top: 20px; left: 25px; color: var(--text-color); font-size: 30px; cursor: pointer; }
 
-/* قائمة المستخدم المحسنة */
+/* قائمة المستخدم */
 .menu-item { 
     background: #161616; 
     padding: 18px; 
@@ -216,22 +213,18 @@ body {
     justify-content: center;
 }
 
-/* الموبايل: عرض 3 كروت كما تم مسبقاً */
+/* الموبايل: عرض 3 كروت إجباري */
 @media (max-width: 768px) {
     .bookmarks-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr); 
-        gap: 10px;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important; 
+        gap: 8px !important;
     }
+    .manga-mini-card img { width: 100% !important; }
 }
 
 .manga-mini-card { text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 5px; }
 .manga-mini-card img { width: 70px; height: 100px; object-fit: cover; border-radius: 10px; border: 1px solid #333; transition: 0.3s; }
-
-@media (max-width: 768px) {
-    .manga-mini-card img { width: 100%; }
-}
-
 .manga-mini-card:hover img { border-color: var(--main-blue); transform: scale(1.05); }
 .manga-mini-card span { font-size: 11px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
 </style>
@@ -484,7 +477,6 @@ async function updateUIState() {
     }
 }
 
-// تعديل بسيط لضمان ظهور الـ flex عند الفتح
 function toggleUserMenu() { 
     const modal = document.getElementById('userModal');
     modal.style.display = 'flex'; 
