@@ -123,6 +123,11 @@ body {
 .prev-arrow { right: 10px; }
 .next-arrow { left: 10px; }
 
+/* إظهار الأسهم في الـ PC عند الحاجة */
+@media (min-width: 769px) {
+    .nav-arrow { display: flex; }
+}
+
 @media (max-width: 768px) {
     .nav-arrow { display: flex; width: 35px; height: 35px; }
     #latest-chapters-container { padding: 20px 15px; gap: 15px; }
@@ -262,7 +267,7 @@ body {
 
 <div class="header">
   <div class="right-side">
-    <div class="theme-toggle" onclick="toggleTheme()">
+    <div class="theme-toggle" onclick="toggleTheme()" id="theme-btn">
         <svg id="theme-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
     </div>
     <a href="https://x.com/STELLARRUN66" target="_blank" class="x-icon">
@@ -427,6 +432,17 @@ function toggleAuthMode(isSignUp) {
 
 function scrollSlider(id, amount) { document.getElementById(id).scrollBy({ left: amount, behavior: 'smooth' }); }
 
+// وظيفة لفحص هل نحتاج لإظهار الأسهم بناءً على عرض المحتوى
+function checkArrows() {
+    const container = document.getElementById('latest-chapters-container');
+    const arrows = document.querySelectorAll('.nav-arrow');
+    if (container.scrollWidth > container.clientWidth) {
+        arrows.forEach(a => a.style.display = 'flex');
+    } else {
+        arrows.forEach(a => a.style.display = 'none');
+    }
+}
+
 async function displayLatest() {
     const container = document.getElementById('latest-chapters-container');
     const staticRatings = { "bluelock": 8.1, "dandadan": 8.5, "gachiakuta": 8.2, "sakamoto": 7.8 };
@@ -453,7 +469,9 @@ async function displayLatest() {
                     </div>
                 </a>`;
         });
-        container.innerHTML = html; initSpotlight();
+        container.innerHTML = html; 
+        initSpotlight();
+        checkArrows(); // استدعاء الفحص بعد تحميل البيانات
     } catch (e) { console.log(e); }
 }
 
@@ -472,9 +490,25 @@ window.onload = () => {
     displayLatest(); updateUIState();
 };
 
+// إضافة فحص الأسهم عند تغيير حجم الشاشة أيضاً
+window.onresize = checkArrows;
+
 function toggleTheme() {
     const html = document.documentElement;
-    html.setAttribute('data-theme', html.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+    const themeBtn = document.getElementById('theme-btn');
+    const isLight = html.getAttribute('data-theme') === 'light';
+    
+    // تبديل الثيم
+    html.setAttribute('data-theme', isLight ? 'dark' : 'light');
+    
+    // تبديل الأيقونة (شمس في الليل، قمر في النهار)
+    if (isLight) {
+        // تحول لليلي -> أظهر الشمس
+        themeBtn.innerHTML = `<svg id="theme-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+    } else {
+        // تحول لنهاري -> أظهر القمر
+        themeBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+    }
 }
 
 async function updateUIState() {
